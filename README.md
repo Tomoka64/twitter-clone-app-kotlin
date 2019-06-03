@@ -1,8 +1,18 @@
-# itemae
+# twitter-mock-kotlin
+
+## Architecture
+![alt text](image/architecture.png "architecture")
+
+## The technologies we used.
+- gRPC
+- Docker
+- Kotlin + Spring Boot + JPA
+- Firebase Auth / Storage
+- GCP (Cloud build, GCR, GKE, Cloud KMS, Cloud SQL, StackDriver)
 
 ## Steps to set up.
 
-### To init
+### To run the application
 install docker in your computer and follow the steps below
 
 ```
@@ -41,4 +51,9 @@ Edit your code after running gradle. you no longer need to bootRun again. your c
 $ gradle classes
 ```
 
-Contributors
+### Authors
+```
+Hikaru Suzuki @gammaaex
+Tomoka Yokomizo @Tomoka64
+Watanabe Noriyuki @noriyu
+```

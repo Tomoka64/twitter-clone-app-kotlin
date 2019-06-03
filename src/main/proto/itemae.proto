@@ -1,0 +1,143 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "jp.co.cyberagent.itemae.proto";
+option java_outer_classname = "ItemaeServiceProto";
+
+import "google/protobuf/timestamp.proto";
+
+service UnauthorizedItemaeService {
+    rpc CreateUser (CreateUserRequest) returns (EmptyResponse);
+    rpc GetUser (GetUserInfoRequest) returns (User);
+    rpc GetFollowingUserList (GetUserInfoRequest) returns (UserList);
+    rpc GetFollowerUserList (GetUserInfoRequest) returns (UserList);
+    rpc GetTweetList (GetUserInfoRequest) returns (TweetList);
+}
+
+service AuthorizedItemaeService {
+    rpc GetTimeline (GetAuthorizedUserRequest) returns (TweetList);
+    rpc CreateTweet (CreateTweetRequest) returns (TweetId);
+    rpc DeleteTweet (ReflectTweetRequest) returns (EmptyResponse);
+    rpc Favorite (ReflectTweetRequest) returns (EmptyResponse);
+    rpc DismissFavorite (ReflectTweetRequest) returns (EmptyResponse);
+    rpc DismissReTweet (ReflectTweetRequest) returns (EmptyResponse);
+    rpc ReTweet (ReflectTweetRequest) returns (EmptyResponse);
+    rpc Follow (FollowUnFollowRequest) returns (EmptyResponse);
+    rpc UnFollow (FollowUnFollowRequest) returns (EmptyResponse);
+    rpc GetSelfUser (GetAuthorizedUserRequest) returns (User);
+    rpc GetFollowingUserList (GetUserInfoRequest) returns (UserList);
+    rpc GetFollowerUserList (GetUserInfoRequest) returns (UserList);
+    rpc GetAnotherUser (GetUserInfoRequest) returns (User);
+    rpc SearchUsers (SearchRequest) returns (UserList);
+    rpc SearchTweets (SearchRequest) returns (TweetList);
+    rpc UpsertFCMToken (UpsertFCMTokenRequest) returns (EmptyResponse);
+    rpc GetNotifications (GetAuthorizedUserRequest) returns (NotificationList);
+    rpc GetTweetList (GetUserInfoRequest) returns (TweetList);
+    rpc GetReTweetList (GetUserInfoRequest) returns (TweetList);
+    rpc GetFavoriteList (GetUserInfoRequest) returns (TweetList);
+    rpc GetTrendTweetList (GetAuthorizedUserRequest) returns (TweetList);
+    rpc EditUser (EditUserRequest) returns (EmptyResponse);
+}
+// Empty Request + firebase token should be set at header
+message GetAuthorizedUserRequest {
+}
+
+// 端末token　と　firebase tokenセット
+message UpsertFCMTokenRequest {
+    string token = 1;
+}
+
+// UserAがFollowやUnfollowするときのRequest　+ tokenセット
+message FollowUnFollowRequest {
+    uint64 target_user_id = 1;
+}
+
+// UnknownUserが初めてUserを作るときのRequest
+message CreateUserRequest {
+    User user = 1;
+    string token = 2;
+}
+
+// 誰でも使えるリクエスト
+message GetUserInfoRequest{
+    uint64 user_id = 1;
+}
+
+//UserAがfavoriteやretweetを飛ばすときのリクエスト　+ tokenセット
+message ReflectTweetRequest {
+    uint64 tweet_id = 1;
+}
+
+//UserAがツイートをポストするときのリクエスト　+ tokenセット
+message CreateTweetRequest {
+    string text = 1;
+}
+
+message SearchRequest {
+    string keyword = 1;
+}
+
+message EditUserRequest {
+    User user = 1;
+}
+
+message EmptyResponse{}
+
+message TweetList {
+    repeated Tweet tweets = 1;
+}
+
+message User {
+    uint64 user_id = 1;
+    string screen_name = 2;
+    string display_name = 3;
+    string description = 4;
+    string location = 5;
+    string url = 6;
+    google.protobuf.Timestamp born_on = 7;
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+    bool isFollowing = 10;
+    bool isFollowed = 11;
+}
+
+message UserList {
+    repeated User users = 1;
+}
+
+message Tweet {
+    uint64 tweet_id = 1;
+    User user = 2;
+    string text = 3;
+    uint64 retweet_count = 4;
+    uint64 favorite_count = 5;
+    google.protobuf.Timestamp created_at = 6;
+    User retweeted_user = 7;
+    bool isRetweet = 8;
+    bool isFavorite = 9;
+}
+
+message Notification {
+    string notificationType = 1;
+    User user = 2;
+    oneof content {
+        Tweet tweet = 3;
+        EmptyResponse empty = 4;
+    }
+    google.protobuf.Timestamp created_at = 5;
+    message Tweet {
+        uint64 tweet_id = 1;
+        uint64 user_id = 2;
+        string text = 3;
+        google.protobuf.Timestamp created_at = 6;
+    }
+}
+
+message NotificationList {
+    repeated Notification notifications = 1;
+}
+
+message TweetId {
+    uint64 tweet_id = 1;
+}
+

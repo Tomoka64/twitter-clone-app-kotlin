@@ -1,0 +1,147 @@
+steps:
+  # Pull images with parallel
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Pull migrator cache image'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker pull gcr.io/$PROJECT_ID/${_MIGRATOR_CACHE_IMAGE_NAME}:latest || exit 0
+    waitFor: ['-']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Pull server cache image'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker pull gcr.io/$PROJECT_ID/${_SERVER_CACHE_IMAGE_NAME}:latest || exit 0
+    waitFor: ['-']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Pull server production image'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        docker pull gcr.io/$PROJECT_ID/${_SERVER_PRODUCTION_IMAGE_NAME}:latest || exit 0
+    waitFor: ['-']
+  # Save caches
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build migrator cache image'
+    args:
+      - 'build'
+      - '-f'
+      - 'docker/migrator/Dockerfile'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_MIGRATOR_CACHE_IMAGE_NAME}:latest'
+      - '--cache-from'
+      - 'gcr.io/$PROJECT_ID/${_MIGRATOR_CACHE_IMAGE_NAME}:latest'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build server cache image'
+    args:
+      - 'build'
+      - '-f'
+      - 'docker/development/Dockerfile'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_SERVER_CACHE_IMAGE_NAME}:latest'
+      - '--cache-from'
+      - 'gcr.io/$PROJECT_ID/${_SERVER_CACHE_IMAGE_NAME}:latest'
+      - '.'
+  # Setup Database
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Run MySQL container'
+    args:
+      - 'run'
+      - '-d'
+      - '-t'
+      - '--rm'
+      - '--name'
+      - 'mysql'
+      - '-e'
+      - 'MYSQL_ROOT_PASSWORD=root'
+      - '--tmpfs'
+      - '/var/lib/mysql'
+      - '${_MYSQL_TAG}'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Wait database'
+    args:
+      - 'run'
+      - '--rm'
+      - '--name'
+      - 'migration-initializer'
+      - '--link'
+      - 'mysql:ALIAS_MYSQL'
+      - '--env'
+      - 'DATABASE_URL=mysql://root:root@mysql:3306/itemae?charset=utf8mb4&parseTime=true'
+      - '${_DBMATE_TAG}'
+      - 'wait'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Create database'
+    args:
+      - 'run'
+      - '--rm'
+      - '--name'
+      - 'migration-initializer'
+      - '--link'
+      - 'mysql:ALIAS_MYSQL'
+      - '--env'
+      - 'DATABASE_URL=mysql://root:root@mysql:3306/itemae?charset=utf8mb4&parseTime=true'
+      - '${_DBMATE_TAG}'
+      - 'create'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Run database migration'
+    args:
+      - 'run'
+      - '--rm'
+      - '--name'
+      - 'migrator'
+      - '--link'
+      - 'mysql:ALIAS_MYSQL'
+      - '--volume'
+      - '/workspace:/home'
+      - 'gcr.io/$PROJECT_ID/${_MIGRATOR_CACHE_IMAGE_NAME}:latest'
+      - '/bin/sh'
+      - '-c'
+      - |
+        mysqldef -uroot -proot -hmysql itemae --file=database/schema.sql
+  # Execute Tests and Build Application
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Run build and tests'
+    args:
+      - 'run'
+      - '--rm'
+      - '--name'
+      - 'server'
+      - '--link'
+      - 'mysql:ALIAS_MYSQL'
+      - '--volume'
+      - '/workspace:/home'
+      - 'gcr.io/$PROJECT_ID/${_SERVER_CACHE_IMAGE_NAME}:latest'
+      - '/bin/bash'
+      - '-c'
+      - |
+        gradle build && gradle test
+  # Save image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build server production image'
+    args:
+      - 'build'
+      - '-f'
+      - 'docker/production/Dockerfile'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/${_SERVER_PRODUCTION_IMAGE_NAME}:latest'
+      - '--cache-from'
+      - 'gcr.io/$PROJECT_ID/${_SERVER_PRODUCTION_IMAGE_NAME}:latest'
+      - '.'
+
+substitutions:
+  _MYSQL_TAG: mysql:5.7
+  _DBMATE_TAG: amacneil/dbmate:latest
+  _SERVER_CACHE_IMAGE_NAME: itemae-server-cache
+  _MIGRATOR_CACHE_IMAGE_NAME: itemae-migrator-cache
+  _SERVER_PRODUCTION_IMAGE_NAME: itemae-server
+
+images:
+  - 'gcr.io/$PROJECT_ID/${_SERVER_CACHE_IMAGE_NAME}:latest'
+  - 'gcr.io/$PROJECT_ID/${_MIGRATOR_CACHE_IMAGE_NAME}:latest'
+  - 'gcr.io/$PROJECT_ID/${_SERVER_PRODUCTION_IMAGE_NAME}:latest'

@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: io.github.lognet:grpc-spring-boot-starter:3.2.1">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.lognet/grpc-spring-boot-starter/3.2.1/6fb0612ad35d5515d3471444f434f65ad3c98195/grpc-spring-boot-starter-3.2.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.lognet/grpc-spring-boot-starter/3.2.1/b5e109cc6e321071bc6182666b0e009a43117876/grpc-spring-boot-starter-3.2.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

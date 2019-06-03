@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: test_itemae_mysql
+    env_file: .env
+    tmpfs:
+      - $MYSQL_DATA_DIR
+      - /etc/mysql/conf.d
+    volumes:
+      - ./mysql/init:/docker-entrypoint-initdb.d
+
+  server:
+    build: ../
+    container_name: test_itemae_server
+    env_file: .env
+    volumes:
+      - ../:/home
+    tty: true
+    depends_on:
+      - mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:4.8
+    container_name: test_itemae_pma
+    env_file: .env
+    ports:
+      - 8081:80
+    depends_on:
+      - mysql
+
+  migrator:
+    build: ./migrator
+    container_name: test_itemae_migrator
+    env_file: .env
+    tty: true
+    volumes:
+      - ../database:/home
+    depends_on:
+      - mysql
+
+  dbmate:
+    image: amacneil/dbmate
+    container_name: test_itemae_dbmate
+    env_file: .env
+    tty: true
+    environment:
+      - DATABASE_URL=mysql://root:$MYSQL_ROOT_PASSWORD@mysql:3306/itemae
+    depends_on:
+      - mysql

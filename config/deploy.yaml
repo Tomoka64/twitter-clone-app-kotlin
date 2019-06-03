@@ -1,0 +1,127 @@
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "itemae-server-service"
+  namespace: "default"
+  labels:
+    app: "itemae-server"
+spec:
+  ports:
+    - protocol: "TCP"
+      port: 6565
+  selector:
+    app: "itemae-server"
+  type: "LoadBalancer"
+  loadBalancerIP: ""
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  name: "itemae-server-config"
+  namespace: "default"
+  labels:
+    app: "itemae-server"
+data:
+  MYSQL_HOST: "127.0.0.1"
+  MYSQL_DATABASE: "itemae"
+  MYSQL_APP_USERNAME: "root"
+  MYSQL_APP_PASSWORD: "root"
+  HTTP_LISTEN_PORT: "8080"
+---
+apiVersion: "extensions/v1beta1"
+kind: "Deployment"
+metadata:
+  name: "itemae-server"
+  namespace: "default"
+  labels:
+    app: "itemae-server"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: "itemae-server"
+  template:
+    metadata:
+      labels:
+        app: "itemae-server"
+    spec:
+      containers:
+        - name: "itemae-server-sha256"
+          image: "gcr.io/cyberagent-268/itemae-server"
+          ports:
+            - containerPort: 6565
+              protocol: "TCP"
+          env:
+            - name: "MYSQL_HOST"
+              valueFrom:
+                configMapKeyRef:
+                  key: "MYSQL_HOST"
+                  name: "itemae-server-config"
+            - name: "MYSQL_DATABASE"
+              valueFrom:
+                configMapKeyRef:
+                  key: "MYSQL_DATABASE"
+                  name: "itemae-server-config"
+            - name: "MYSQL_APP_USERNAME"
+              valueFrom:
+                secretKeyRef:
+                  name: "cloudsql"
+                  key: "username"
+            - name: "MYSQL_APP_PASSWORD"
+              valueFrom:
+                secretKeyRef:
+                  name: "cloudsql"
+                  key: "password"
+            - name: "HTTP_LISTEN_PORT"
+              valueFrom:
+                configMapKeyRef:
+                  key: "HTTP_LISTEN_PORT"
+                  name: "itemae-server-config"
+            - name: "FIREBASE_CREDENTIAL"
+              valueFrom:
+                secretKeyRef:
+                  name: "firebase-secret"
+                  key: "credential"
+        - image: b.gcr.io/cloudsql-docker/gce-proxy:1.05
+          name: cloudsql-proxy
+          command: ["/cloud_sql_proxy", "--dir=/cloudsql",
+                    "-instances=cyberagent-268:us-west1:itemae-db-sandbox=tcp:3306",
+                    "-credential_file=/secrets/cloudsql/credentials.json"]
+          volumeMounts:
+            - name: cloudsql-oauth-credentials
+              mountPath: /secrets/cloudsql
+              readOnly: true
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs
+            - name: cloudsql
+              mountPath: /cloudsql
+      volumes:
+        - name: cloudsql-oauth-credentials
+          secret:
+            secretName: cloudsql-oauth-credentials
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs
+        - name: cloudsql
+          emptyDir:
+---
+apiVersion: "autoscaling/v2beta1"
+kind: "HorizontalPodAutoscaler"
+metadata:
+  name: "itemae-server-hpa"
+  namespace: "default"
+  labels:
+    app: "itemae-server"
+spec:
+  scaleTargetRef:
+    kind: "Deployment"
+    name: "itemae-server"
+    apiVersion: "apps/v1beta1"
+  minReplicas: 3
+  maxReplicas: 5
+  metrics:
+    - type: "Resource"
+      resource:
+        name: "cpu"
+        targetAverageUtilization: 80

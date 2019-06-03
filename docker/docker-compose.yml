@@ -1,0 +1,59 @@
+version: '3'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: itemae_mysql
+    command: >
+      mysqld
+      --character-set-server=utf8
+      --collation-server=utf8_general_ci
+      --skip-character-set-client-handshake
+      --log-error=/var/log/mysql/error.log
+      --slow_query_log
+      --slow_query_log_file=/var/log/mysql/slow_query.log
+      --long_query_time=5
+      --log-queries-not-using-indexes
+      --general-log
+      --general-log-file=/var/log/mysql/general.log
+    env_file: .env
+    ports:
+      - $MYSQL_LISTEN_PORT:3306
+    volumes:
+      - ./mysql/data:$MYSQL_DATA_DIR
+      - ./mysql/conf.d:/etc/mysql/conf.d
+      - ./mysql/init:/docker-entrypoint-initdb.d
+
+  server:
+    build: ./development
+    container_name: itemae_server
+    env_file: .env
+    ports:
+      - $HTTP_LISTEN_PORT:8888
+      - $GRPC_LISTEN_PORT:6565
+    volumes:
+      - ../:/home
+    tty: true
+    depends_on:
+      - mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:4.8
+    container_name: itemae_pma
+    env_file: .env
+    ports:
+      - $PHPMYADMIN_LISTEN_PORT:80
+    volumes:
+      - ./phpmyadmin/sessions:/var/lib/php7/session
+    depends_on:
+      - mysql
+
+  migrator:
+    build: ./migrator
+    container_name: itemae_migrator
+    env_file: .env
+    tty: true
+    volumes:
+      - ../database:/home
+    depends_on:
+      - mysql
